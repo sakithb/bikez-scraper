@@ -3,6 +3,7 @@ package internal
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -94,6 +95,24 @@ func (s *CategoryScraper) Scraper() {
 	cl := colly.NewCollector()
 
 	cl.OnHTML("table.zebra>tbody>tr>td:first-child>a:only-child:not(:has(*))", func(h *colly.HTMLElement) {
+		td := h.DOM.Parent()
+		ys := ""
+
+		if td.Siblings().Length() == 0 {
+			ys = td.Parent().Next().Children().First().Text()
+		} else {
+			ys = td.Next().Text()
+		}
+
+		year, err := strconv.Atoi(ys)
+		if err != nil {
+			panic(err.Error() + " " + h.Request.URL.String())
+		}
+
+		if year < 1980 {
+			return
+		}
+
 		s.results <- h.Request.AbsoluteURL(h.Attr("href"))
 	})
 

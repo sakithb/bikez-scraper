@@ -23,10 +23,10 @@ type BikeScraper struct {
 }
 
 type Bike struct {
-	Model          string   `json:"model"`
-	Brand          string   `json:"brand"`
-	Year           int      `json:"year"`
-	Category       string   `json:"type"`
+	Model    string `json:"model"`
+	Brand    string `json:"brand"`
+	Year     int    `json:"year"`
+	Category string `json:"type"`
 }
 
 type InputBike struct {
@@ -158,19 +158,25 @@ func (s *BikeScraper) Scraper() {
 	defer s.wwg.Done()
 
 	cl := colly.NewCollector()
+	skip := false
 
 	cl.OnHTML("script[type='application/ld+json']", func(h *colly.HTMLElement) {
 		if !strings.HasPrefix(h.Text, " \n{\"@type\":\"M") {
+			skip = !strings.Contains(h.Text, "aggregateRating")
 			return
 		}
 
 		defer s.bwg.Done()
 
+		if skip {
+			return
+		}
+
 		i := InputBike{}
 
 		t := []byte(h.Text)
 		for i, v := range t {
-			if v == '\n' {
+			if v == '\n' || v == '\t' {
 				t[i] = ' '
 			}
 		}
@@ -184,12 +190,11 @@ func (s *BikeScraper) Scraper() {
 			return
 		}
 
-
 		e, err := strconv.ParseFloat(i.Engine.Displacement.Value, 64)
 		if err != nil {
 			panic(err.Error() + " " + h.Request.URL.String())
 		}
-		
+
 		d := int(math.Round(e/10) * 10)
 
 		if d < 150 {
@@ -201,10 +206,6 @@ func (s *BikeScraper) Scraper() {
 		y, err := strconv.Atoi(bef)
 		if err != nil {
 			panic(err.Error() + " " + h.Request.URL.String())
-		}
-
-		if y < 1970 {
-			return
 		}
 
 		b := Bike{}
