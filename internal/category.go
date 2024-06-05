@@ -2,6 +2,7 @@ package internal
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 	"sync"
@@ -54,7 +55,7 @@ func (s *CategoryScraper) Writer() {
 
 	f, err := os.Create("bikes.list")
 	if err != nil {
-		panic(err)
+		log.Fatalln("\rError while opening bikes.list", err)
 	}
 
 	defer f.Close()
@@ -66,7 +67,8 @@ func (s *CategoryScraper) Writer() {
 	for r := range s.results {
 		_, err := f.WriteString(r + "\n")
 		if err != nil {
-			panic(err)
+			log.Println("Error while writing result", r, err)
+			continue
 		}
 
 		count++
@@ -83,7 +85,7 @@ func (s *CategoryScraper) Writer() {
 
 	err = f.Sync()
 	if err != nil {
-		panic(err)
+		log.Fatalln("Error while flushing to bikes.list", err)
 	}
 
 	fmt.Print("\n")
@@ -106,7 +108,8 @@ func (s *CategoryScraper) Scraper() {
 
 		year, err := strconv.Atoi(ys)
 		if err != nil {
-			panic(err.Error() + " " + h.Request.URL.String())
+			log.Println("Error while parsing year", h.Request.URL, err)
+			return
 		}
 
 		if year < 1980 {

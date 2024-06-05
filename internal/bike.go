@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"math"
 	"os"
 	"strconv"
@@ -65,7 +66,7 @@ func (s *BikeScraper) Start(workers int) {
 
 	f, err := os.Open("bikes.list")
 	if err != nil {
-		panic("Could not open bikes.list")
+		log.Fatalln("Could not open bikes.list", err)
 	}
 
 	defer f.Close()
@@ -74,20 +75,21 @@ func (s *BikeScraper) Start(workers int) {
 
 	for {
 		line, err := sc.ReadString('\n')
-		if err != nil && err != io.EOF {
-			panic("Error while reading bikes.list")
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+
+			log.Fatalln("Error while reading from bikes.list", err)
 		}
 
 		if len(line) == 0 {
-			panic("Invalid line")
+			log.Println("Invalid line: ", line)
+			continue
 		}
 
 		s.bwg.Add(1)
 		s.inputs <- line[:len(line)-1]
-
-		if err == io.EOF {
-			break
-		}
 	}
 
 	s.bwg.Wait()
@@ -103,14 +105,14 @@ func (s *BikeScraper) Writer() {
 
 	f, err := os.Create("models.json")
 	if err != nil {
-		panic(err)
+		log.Fatalln("Error while opening models.json", err)
 	}
 
 	defer f.Close()
 
 	_, err = f.Write([]byte{'['})
 	if err != nil {
-		panic(err)
+		log.Fatalln("Error while writing to models.json", err)
 	}
 
 	count := 0
@@ -120,12 +122,14 @@ func (s *BikeScraper) Writer() {
 	for b := range s.results {
 		j, err := json.Marshal(b)
 		if err != nil {
-			panic(err)
+			log.Println("Error while encoding bike", b, err)
+			continue
 		}
 
 		_, err = f.Write(append(j, ','))
 		if err != nil {
-			panic(err)
+			log.Println("Error while writing encoded bike", j, err)
+			continue
 		}
 
 		count++
@@ -143,12 +147,12 @@ func (s *BikeScraper) Writer() {
 
 	_, err = f.Write([]byte{']'})
 	if err != nil {
-		panic(err)
+		log.Fatalln("Error while writing to models.json", err)
 	}
 
 	err = f.Sync()
 	if err != nil {
-		panic(err)
+		log.Fatalln("Error while flushing to models.json", err)
 	}
 
 	fmt.Printf("\r%05d Bikes scraped - Done      \n", count)
@@ -183,7 +187,8 @@ func (s *BikeScraper) Scraper() {
 
 		err := json.Unmarshal(t, &i)
 		if err != nil {
-			panic(err.Error() + " " + h.Request.URL.String())
+			log.Println("Error while parsing input bike", i, err)
+			return
 		}
 
 		if i.Model == "" || i.Brand.Name == "" || i.Category == "" || i.Engine.Displacement.Value == "" {
@@ -192,12 +197,13 @@ func (s *BikeScraper) Scraper() {
 
 		e, err := strconv.ParseFloat(i.Engine.Displacement.Value, 64)
 		if err != nil {
-			panic(err.Error() + " " + h.Request.URL.String())
+			log.Println("Error while parsing engine capacity", h.Request.URL, err)
+			return
 		}
 
 		d := int(math.Round(e/10) * 10)
 
-		if d < 150 {
+		if d < 250 {
 			return
 		}
 
@@ -205,7 +211,8 @@ func (s *BikeScraper) Scraper() {
 
 		y, err := strconv.Atoi(bef)
 		if err != nil {
-			panic(err.Error() + " " + h.Request.URL.String())
+			log.Println("Error while parsing year", h.Request.URL, err)
+			return
 		}
 
 		b := Bike{}
