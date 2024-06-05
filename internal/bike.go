@@ -24,10 +24,11 @@ type BikeScraper struct {
 }
 
 type Bike struct {
-	Model    string `json:"model"`
-	Brand    string `json:"brand"`
-	Year     int    `json:"year"`
-	Category string `json:"type"`
+	Model          string `json:"model"`
+	Brand          string `json:"brand"`
+	Year           int    `json:"year"`
+	Category       string `json:"type"`
+	EngineCapacity int    `json:"capacity"`
 }
 
 type InputBike struct {
@@ -203,7 +204,7 @@ func (s *BikeScraper) Scraper() {
 
 		d := int(math.Round(e/10) * 10)
 
-		if d < 250 {
+		if d < 200 {
 			return
 		}
 
@@ -221,6 +222,7 @@ func (s *BikeScraper) Scraper() {
 		b.Brand = i.Brand.Name
 		b.Year = y
 		b.Category = strings.ToLower(i.Category)
+		b.EngineCapacity = d
 
 		s.results <- b
 	})
